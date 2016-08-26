@@ -493,13 +493,37 @@ namespace PokemonGo.RocketAPI.Console {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("2")]
-        public int RunningHour {
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool UseMultiSessions {
             get {
-                return ((int)(this["RunningHour"]));
+                return ((bool)(this["UseMultiSessions"]));
             }
             set {
-                this["RunningHour"] = value;
+                this["UseMultiSessions"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1")]
+        public int SessionWaitTimeInMinute {
+            get {
+                return ((int)(this["SessionWaitTimeInMinute"]));
+            }
+            set {
+                this["SessionWaitTimeInMinute"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool UpdateDB {
+            get {
+                return ((bool)(this["UpdateDB"]));
+            }
+            set {
+                this["UpdateDB"] = value;
             }
         }
     }

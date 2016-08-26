@@ -23,6 +23,9 @@ namespace PokemonGo.RocketAPI.Console
         [XmlIgnore]
         private readonly string _configsPath = Path.Combine(Directory.GetCurrentDirectory(), "Settings");
 
+        [XmlIgnore]
+        private BOTSessions _sessionsConfig;
+
         public AuthType AuthType
         {
             get { return (AuthType)Enum.Parse(typeof(AuthType), UserSettings.Default.AuthType, true); }
@@ -256,11 +259,33 @@ namespace PokemonGo.RocketAPI.Console
             set { UserSettings.Default.DevicePackageName = value; }
         }
 
-        public int RunningHour
+        public bool UseMultiSessions
         {
-            get { return UserSettings.Default.RunningHour; }
-            set { UserSettings.Default.RunningHour = value; }
+            get { return UserSettings.Default.UseMultiSessions; }
+            set { UserSettings.Default.UseMultiSessions = value; }
         }
+        public int SessionWaitTimeInMinute
+        {
+            get { return UserSettings.Default.SessionWaitTimeInMinute; }
+            set { UserSettings.Default.SessionWaitTimeInMinute = value; }
+        }
+
+        public bool UpdateDB
+        {
+            get { return UserSettings.Default.UpdateDB; }
+            set { UserSettings.Default.UpdateDB = value; }
+        }
+
+        [XmlIgnore]
+        public BOTSessions MultiSessionsConfig
+        {
+            get
+            {
+                return _sessionsConfig;
+            }
+            set { _sessionsConfig = value; }
+        }
+        //-----------
 
         [XmlIgnore]
         public string DeviceId = "8525f5d8201f78b5";
@@ -321,6 +346,8 @@ namespace PokemonGo.RocketAPI.Console
             _inventoryBerries.Add(2, ItemId.ItemNanabBerry);
             _inventoryBerries.Add(3, ItemId.ItemBlukBerry);
             _inventoryBerries.Add(4, ItemId.ItemRazzBerry);
+
+            _sessionsConfig = new BOTSessions(UserSettings.Default.GoogleEmail, UserSettings.Default.GooglePassword, UserSettings.Default.DefaultLatitude, UserSettings.Default.DefaultLongitude);
         }
         private IDictionary<ItemId, int> _itemRecycleFilter;
         public ICollection<KeyValuePair<ItemId, int>> ItemRecycleFilter(IEnumerable<ItemData> myItems)

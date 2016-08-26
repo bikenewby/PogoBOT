@@ -37,6 +37,17 @@ namespace PokemonGo.RocketAPI.Logic.Utils
         public static DateTime InitSessionDateTime = DateTime.Now;
         public static TimeSpan Duration = DateTime.Now - InitSessionDateTime;
 
+        //KS
+        private static int GetCurrentUserLevel()
+        {
+            var stats = Inventory.GetPlayerStats().Result;
+            var stat = stats.FirstOrDefault();
+            return stat.Level;
+        }
+
+        public static Boolean sessionExit = false;
+        //----
+
         public static string GetCurrentInfo()
         {
             var stats = Inventory.GetPlayerStats().Result;

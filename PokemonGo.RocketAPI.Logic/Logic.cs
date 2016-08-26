@@ -35,11 +35,17 @@ namespace PokemonGo.RocketAPI.Logic
         public static Inventory _inventory;
         public static BotStats _stats;
         public static Navigation _navigation;
+        public static Logic _logic;
         private GetPlayerResponse _playerProfile;
 
         public readonly string ConfigsPath = Path.Combine(Directory.GetCurrentDirectory(), "Settings");
 
         private bool _isInitialized = false;
+
+        // KS
+        public static int currentSession = 0;
+        public static bool loadedSession = false;
+        //--------
 
         public Logic(ISettings clientSettings)
         {
@@ -49,24 +55,60 @@ namespace PokemonGo.RocketAPI.Logic
             _inventory = new Inventory();
             _stats = new BotStats();
             _navigation = new Navigation();
-
+            _logic = this;
         }
 
         public async Task Execute()
         {
+            // KS
+            if (_client.Settings.UseMultiSessions)
+            {
+                if (!loadedSession)
+                {
+                    // Shift current session
+                    currentSession++;
+                    // If already completing all
+                    if (currentSession > _client.Settings.MultiSessionsConfig.SessionList.Count)
+                    {
+                        Logger.Write("Complete all sessions. Exit program.");
+                        System.Environment.Exit(0);
+                    }
+                    // Reset sessionStartTime
+                    Logger.Write("Start session: " + _client.Settings.MultiSessionsConfig.SessionList[currentSession - 1].Seq + " [" + _client.Settings.MultiSessionsConfig.SessionList[currentSession - 1].Uid + "]");
+                    _client.Settings.GoogleEmail = _client.Settings.MultiSessionsConfig.SessionList[currentSession - 1].Uid;
+                    _client.Settings.GooglePassword = _client.Settings.MultiSessionsConfig.SessionList[currentSession - 1].Pwd;
+                    _client.Settings.DefaultLatitude = _client.Settings.MultiSessionsConfig.SessionList[currentSession - 1].Lat;
+                    _client.Settings.DefaultLongitude = _client.Settings.MultiSessionsConfig.SessionList[currentSession - 1].Lng;
+                    loadedSession = true;
+                    _isInitialized = false; // Trigger new login
+                    BotStats.sessionExit = false;
+                }
+            }
+            //----------------
+
             if (!_isInitialized)
             {
                 GitChecker.CheckVersion();
-
-                var latLngFromFile = PositionCheckState.LoadPositionFromDisk();
-                if (latLngFromFile != null && Math.Abs(latLngFromFile.Item1) > 0 && Math.Abs(latLngFromFile.Item2) > 0)
-                    _client.Player.SetCoordinates(latLngFromFile.Item1, latLngFromFile.Item2,
-                        _client.Settings.DefaultAltitude);
+                //KS
+                // If not using multisessions, check & load coordinate from lastCoord file
+                // If using multisessions, always load coordinate from multisession config
+                if (!_client.Settings.UseMultiSessions)
+                {
+                    var latLngFromFile = PositionCheckState.LoadPositionFromDisk();
+                    if (latLngFromFile != null && Math.Abs(latLngFromFile.Item1) > 0 && Math.Abs(latLngFromFile.Item2) > 0)
+                        _client.Player.SetCoordinates(latLngFromFile.Item1, latLngFromFile.Item2,
+                            _client.Settings.DefaultAltitude);
+                    else
+                        _client.Player.SetCoordinates(_client.Settings.DefaultLatitude, _client.Settings.DefaultLongitude,
+                            _client.Settings.DefaultAltitude);
+                }
                 else
-                    _client.Player.SetCoordinates(_client.Settings.DefaultLatitude, _client.Settings.DefaultLongitude,
-                        _client.Settings.DefaultAltitude);
+                {
+                    _client.Player.SetCoordinates(_client.Settings.DefaultLatitude, _client.Settings.DefaultLongitude, _client.Settings.DefaultAltitude);
+                }
+                //---------
 
-                if (Math.Abs(_clientSettings.DefaultLatitude) <= 0  || Math.Abs(_clientSettings.DefaultLongitude) <= 0)
+                if (Math.Abs(_clientSettings.DefaultLatitude) <= 0 || Math.Abs(_clientSettings.DefaultLongitude) <= 0)
                 {
                     Logger.Write($"Please change first Latitude and/or Longitude because currently your using default values!", LogLevel.Error);
                     for (int i = 3; i > 0; i--)
@@ -87,67 +129,77 @@ namespace PokemonGo.RocketAPI.Logic
                 }
             }
             Logger.Write($"Logging in via: {_clientSettings.AuthType}", LogLevel.Info);
-// KS - Run only once
-//            while (true)
-//
+
+            try
             {
-                try
+                switch (_clientSettings.AuthType)
                 {
-                    switch (_clientSettings.AuthType)
+                    case AuthType.Ptc:
+                        await _client.Login.DoLogin();
+                        break;
+                    case AuthType.Google:
+                        await _client.Login.DoLogin();
+                        break;
+                    default:
+                        Logger.Write("wrong AuthType");
+                        Environment.Exit(0);
+                        break;
+                }
+                await PostLoginExecute();
+            }
+            catch (AccountNotVerifiedException)
+            {
+                Logger.Write("Account not verified! Exiting...", LogLevel.Error);
+                await Task.Delay(5000);
+                Environment.Exit(0);
+            }
+            catch (GoogleException e)
+            {
+                if (e.Message.Contains("NeedsBrowser"))
+                {
+                    Logger.Write("As you have Google Two Factor Auth enabled, you will need to insert an App Specific Password into the UserSettings.", LogLevel.Error);
+                    Logger.Write("Opening Google App-Passwords. Please make a new App Password (use Other as Device)", LogLevel.Error);
+                    await Task.Delay(7000);
+                    try
                     {
-                        case AuthType.Ptc:
-                            await _client.Login.DoLogin();
-                            break;
-                        case AuthType.Google:
-                            await _client.Login.DoLogin();
-                            break;
-                        default:
-                            Logger.Write("wrong AuthType");
-                            Environment.Exit(0);
-                            break;
+                        Process.Start("https://security.google.com/settings/security/apppasswords");
                     }
-                    await PostLoginExecute();
-                }
-                catch (AccountNotVerifiedException)
-                {
-                    Logger.Write("Account not verified! Exiting...", LogLevel.Error);
-                    await Task.Delay(5000);
-                    Environment.Exit(0);
-                }
-                catch (GoogleException e)
-                {
-                    if (e.Message.Contains("NeedsBrowser"))
+                    catch (Exception)
                     {
-                        Logger.Write("As you have Google Two Factor Auth enabled, you will need to insert an App Specific Password into the UserSettings.", LogLevel.Error);
-                        Logger.Write("Opening Google App-Passwords. Please make a new App Password (use Other as Device)", LogLevel.Error);
-                        await Task.Delay(7000);
-                        try
-                        {
-                            Process.Start("https://security.google.com/settings/security/apppasswords");
-                        }
-                        catch (Exception)
-                        {
-                            Logger.Write("https://security.google.com/settings/security/apppasswords");
-                            throw;
-                        }
+                        Logger.Write("https://security.google.com/settings/security/apppasswords");
+                        throw;
                     }
-                    Logger.Write("Make sure you have entered the right Email & Password.", LogLevel.Error);
-                    await Task.Delay(5000);
-                    Environment.Exit(0);
                 }
-                catch (InvalidProtocolBufferException ex) when (ex.Message.Contains("SkipLastField"))
+                Logger.Write("Make sure you have entered the right Email & Password.", LogLevel.Error);
+                await Task.Delay(5000);
+                Environment.Exit(0);
+            }
+            catch (InvalidProtocolBufferException ex) when (ex.Message.Contains("SkipLastField"))
+            {
+                Logger.Write("Connection refused. Your IP might have been Blacklisted by Niantic. Exiting..", LogLevel.Error);
+                await Task.Delay(5000);
+                Environment.Exit(0);
+            }
+            catch (Exception e)
+            {
+                Logger.Write(e.Message + " from " + e.Source);
+                Logger.Write("Error, trying automatic restart..", LogLevel.Error);
+                await Execute();
+            }
+            if (_client.Settings.SessionWaitTimeInMinute != 0)
+            {
+                if (currentSession < _client.Settings.MultiSessionsConfig.SessionList.Count)
                 {
-                    Logger.Write("Connection refused. Your IP might have been Blacklisted by Niantic. Exiting..", LogLevel.Error);
-                    await Task.Delay(5000);
-                    Environment.Exit(0);
+                    Logger.Write("Pause " + _client.Settings.SessionWaitTimeInMinute + " minutes before starting new session.");
+                    await Task.Delay(_client.Settings.SessionWaitTimeInMinute * 60 * 1000);
                 }
-                catch (Exception e)
-                {
-                    Logger.Write(e.Message + " from " + e.Source);
-                    Logger.Write("Error, trying automatic restart..", LogLevel.Error);
-                    await Execute();
-                }
-                await Task.Delay(10000);
+            }
+            // If not last session, shift to next session
+            if (_client.Settings.UseMultiSessions)
+            {
+                Logger.Write("End of session#" + currentSession + Environment.NewLine);
+                loadedSession = false;
+                await Execute();
             }
         }
 
@@ -168,71 +220,64 @@ namespace PokemonGo.RocketAPI.Logic
         {
             Logger.Write($"Client logged in", LogLevel.Info);
 
-            // KS - Run once
-            //while (true)
-            //
+
+            if (!_isInitialized)
             {
-                if (!_isInitialized)
-                {
-                    await Inventory.GetCachedInventory();
-                    _playerProfile = await _client.Player.GetPlayer();
-                    BotStats.UpdateConsoleTitle();
+                await Inventory.GetCachedInventory();
+                _playerProfile = await _client.Player.GetPlayer();
+                BotStats.UpdateConsoleTitle();
 
-                    var stats = await Inventory.GetPlayerStats();
-                    var stat = stats.FirstOrDefault();
-                    if (stat != null) BotStats.KmWalkedOnStart = stat.KmWalked;
+                var stats = await Inventory.GetPlayerStats();
+                var stat = stats.FirstOrDefault();
+                if (stat != null) BotStats.KmWalkedOnStart = stat.KmWalked;
 
-                    Logger.Write("----------------------------", LogLevel.None, ConsoleColor.Yellow);
-                    if (_clientSettings.AuthType == AuthType.Ptc)
-                        Logger.Write($"PTC Account: {BotStats.GetUsername(_playerProfile)}\n", LogLevel.None, ConsoleColor.Cyan);
-                    Logger.Write($"Latitude: {_clientSettings.DefaultLatitude}", LogLevel.None, ConsoleColor.DarkGray);
-                    Logger.Write($"Longitude: {_clientSettings.DefaultLongitude}", LogLevel.None, ConsoleColor.DarkGray);
-                    Logger.Write("----------------------------", LogLevel.None, ConsoleColor.Yellow);
-                    Logger.Write("Your Account:\n");
-                    Logger.Write($"Name: {BotStats.GetUsername(_playerProfile)}", LogLevel.None, ConsoleColor.DarkGray);
-                    Logger.Write($"Team: {_playerProfile.PlayerData.Team}", LogLevel.None, ConsoleColor.DarkGray);
-                    Logger.Write($"Level: {BotStats.GetCurrentInfo()}", LogLevel.None, ConsoleColor.DarkGray);
-                    Logger.Write($"Stardust: {_playerProfile.PlayerData.Currencies.ToArray()[1].Amount}", LogLevel.None, ConsoleColor.DarkGray);
-                    Logger.Write("----------------------------", LogLevel.None, ConsoleColor.Yellow);
-                    await DisplayHighests();
-                    Logger.Write("----------------------------", LogLevel.None, ConsoleColor.Yellow);
+                Logger.Write("----------------------------", LogLevel.None, ConsoleColor.Yellow);
+                if (_clientSettings.AuthType == AuthType.Ptc)
+                    Logger.Write($"PTC Account: {BotStats.GetUsername(_playerProfile)}\n", LogLevel.None, ConsoleColor.Cyan);
+                Logger.Write($"Latitude: {_clientSettings.DefaultLatitude}", LogLevel.None, ConsoleColor.DarkGray);
+                Logger.Write($"Longitude: {_clientSettings.DefaultLongitude}", LogLevel.None, ConsoleColor.DarkGray);
+                Logger.Write("----------------------------", LogLevel.None, ConsoleColor.Yellow);
+                Logger.Write("Your Account:\n");
+                Logger.Write($"Name: {BotStats.GetUsername(_playerProfile)}", LogLevel.None, ConsoleColor.DarkGray);
+                Logger.Write($"Team: {_playerProfile.PlayerData.Team}", LogLevel.None, ConsoleColor.DarkGray);
+                Logger.Write($"Level: {BotStats.GetCurrentInfo()}", LogLevel.None, ConsoleColor.DarkGray);
+                Logger.Write($"Stardust: {_playerProfile.PlayerData.Currencies.ToArray()[1].Amount}", LogLevel.None, ConsoleColor.DarkGray);
+                Logger.Write("----------------------------", LogLevel.None, ConsoleColor.Yellow);
+                await DisplayHighests();
+                Logger.Write("----------------------------", LogLevel.None, ConsoleColor.Yellow);
 
-                    var pokemonsToNotTransfer = _clientSettings.PokemonsToNotTransfer;
-                    var pokemonsToNotCatch = _clientSettings.PokemonsToNotCatch;
-                    var pokemonsToEvolve = _clientSettings.PokemonsToEvolve;
+                var pokemonsToNotTransfer = _clientSettings.PokemonsToNotTransfer;
+                var pokemonsToNotCatch = _clientSettings.PokemonsToNotCatch;
+                var pokemonsToEvolve = _clientSettings.PokemonsToEvolve;
 
-                    await RecycleItemsTask.Execute();
-                    if (_client.Settings.UseLuckyEggs) await UseLuckyEggTask.Execute();
-                    if (_client.Settings.EvolvePokemon || _client.Settings.EvolveOnlyPokemonAboveIV) await EvolvePokemonTask.Execute();
-                    if (_client.Settings.TransferPokemon) await TransferPokemonTask.Execute();
-                    await ExportPokemonToCsv.Execute(_playerProfile.PlayerData);
-                    if (_clientSettings.HatchEggs) await HatchEggsTask.Execute();
-                }
-                _isInitialized = true;
-                await Main();
-
-                await RefreshTokens();
-
-                /*
-                * Example calls below
-                *
-                var profile = await _client.GetProfile();
-                var settings = await _client.GetSettings();
-                var mapObjects = await _client.GetMapObjects();
-                var inventory = await _client.GetInventory();
-                var pokemons = inventory.InventoryDelta.InventoryItems.Select(i => i.InventoryItemData?.Pokemon).Where(p => p != null && p?.PokemonId > 0);
-                */
-
-                await Task.Delay(10000);
+                //await RecycleItemsTask.Execute();
+                //if (_client.Settings.UseLuckyEggs) await UseLuckyEggTask.Execute();
+                //if (_client.Settings.EvolvePokemon || _client.Settings.EvolveOnlyPokemonAboveIV) await EvolvePokemonTask.Execute();
+                //if (_client.Settings.TransferPokemon) await TransferPokemonTask.Execute();
+                await ExportPokemonToCsv.Execute(_playerProfile.PlayerData);
+                if (_clientSettings.HatchEggs) await HatchEggsTask.Execute();
             }
+            _isInitialized = true;
+            await Main();
+
+            await RefreshTokens();
+
+            /*
+            * Example calls below
+            *
+            var profile = await _client.GetProfile();
+            var settings = await _client.GetSettings();
+            var mapObjects = await _client.GetMapObjects();
+            var inventory = await _client.GetInventory();
+            var pokemons = inventory.InventoryDelta.InventoryItems.Select(i => i.InventoryItemData?.Pokemon).Where(p => p != null && p?.PokemonId > 0);
+            */
+
+            await Task.Delay(10000);
         }
 
         private async Task Main()
         {
-            if (_clientSettings.UseGPXPathing)
-                await FarmPokestopsGPXTask.Execute();
-            else
-                await FarmPokestopsTask.Execute();
+            await FarmPokestopsTask.Execute();
         }
 
         private async Task DisplayHighests()
@@ -264,4 +309,3 @@ namespace PokemonGo.RocketAPI.Logic
         }
     }
 }
- 

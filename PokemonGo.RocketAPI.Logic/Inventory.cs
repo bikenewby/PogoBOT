@@ -349,20 +349,6 @@ namespace PokemonGo.RocketAPI.Logic
                         i.Type == FortType.Checkpoint
                 ).ToList();
             
-            // KS
-            /*
-            if (gpxpathing)
-                pokeStops = pokeStops.Where(p => LocationUtils.CalculateDistanceInMeters(
-                    Logic._client.CurrentLatitude, Logic._client.CurrentLongitude,
-                    p.Latitude, p.Longitude) < 40).ToList();
-            else
-                pokeStops = pokeStops.Where(p => LocationUtils.CalculateDistanceInMeters(
-                    Logic._client.Settings.DefaultLatitude, Logic._client.Settings.DefaultLongitude,
-                    p.Latitude, p.Longitude) < Logic._client.Settings.MaxTravelDistanceInMeters ||
-                                                 Logic._client.Settings.MaxTravelDistanceInMeters == 0).ToList();
-            */
-            //----------
-
             return pokeStops.OrderBy(
                 i =>
                     LocationUtils.CalculateDistanceInMeters(Logic._client.CurrentLatitude,
@@ -383,20 +369,6 @@ namespace PokemonGo.RocketAPI.Logic
                     //    i.CooldownCompleteTimestampMs < DateTime.UtcNow.ToUnixTime()
                         i.Type == FortType.Gym
                 ).ToList();
-            // KS
-            /*
-            if (gpxpathing)
-                pokeStops = pokeStops.Where(p => LocationUtils.CalculateDistanceInMeters(
-                    Logic._client.CurrentLatitude, Logic._client.CurrentLongitude,
-                    p.Latitude, p.Longitude) < 40).ToList();
-            else
-                pokeStops = pokeStops.Where(p => LocationUtils.CalculateDistanceInMeters(
-                    Logic._client.Settings.DefaultLatitude, Logic._client.Settings.DefaultLongitude,
-                    p.Latitude, p.Longitude) < Logic._client.Settings.MaxTravelDistanceInMeters ||
-                                                 Logic._client.Settings.MaxTravelDistanceInMeters == 0).ToList();
-            */
-            //-----------
-
             return pokeStops.OrderBy(
                 i =>
                     LocationUtils.CalculateDistanceInMeters(Logic._client.CurrentLatitude,

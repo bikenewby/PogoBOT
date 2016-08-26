@@ -15,10 +15,10 @@ namespace PokemonGo.RocketAPI
         AuthType AuthType { get; }
         string PtcPassword { get; }
         string PtcUsername { get; }
-        string GoogleEmail { get; }
-        string GooglePassword { get; }
-        double DefaultLatitude { get; }
-        double DefaultLongitude { get; }
+        string GoogleEmail { get; set; }
+        string GooglePassword { get; set; }
+        double DefaultLatitude { get; set; }
+        double DefaultLongitude { get; set; }
         double DefaultAltitude { get; }
         bool UseGPXPathing { get; }
         string GPXFile { get; }
@@ -60,6 +60,9 @@ namespace PokemonGo.RocketAPI
         ICollection<PokemonId> PokemonsToNotTransfer { get; }
         ICollection<PokemonId> PokemonsToNotCatch { get; }
 
-        int RunningHour { get; }
+        bool UseMultiSessions { get; }
+        int SessionWaitTimeInMinute { get; }
+        bool UpdateDB { get; }
+        BOTSessions MultiSessionsConfig { get; set; }
     }
 }
