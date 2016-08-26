@@ -53,6 +53,10 @@ namespace PokemonGo.RocketAPI
         {
             String json = JsonConvert.SerializeObject(sessionList);
             byte[] dataArray = Encoding.UTF8.GetBytes(json);
+            // Create directory if not existed
+            System.IO.FileInfo file = new System.IO.FileInfo(sessionConfigFileName);
+            file.Directory.Create(); // If the directory already exists, this method does nothing.
+            // Create/write file
             System.IO.File.WriteAllText(sessionConfigFileName, json);
         }
     }

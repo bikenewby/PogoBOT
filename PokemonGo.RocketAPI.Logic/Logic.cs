@@ -255,7 +255,7 @@ namespace PokemonGo.RocketAPI.Logic
                 //if (_client.Settings.EvolvePokemon || _client.Settings.EvolveOnlyPokemonAboveIV) await EvolvePokemonTask.Execute();
                 //if (_client.Settings.TransferPokemon) await TransferPokemonTask.Execute();
                 await ExportPokemonToCsv.Execute(_playerProfile.PlayerData);
-                if (_clientSettings.HatchEggs) await HatchEggsTask.Execute();
+                //if (_clientSettings.HatchEggs) await HatchEggsTask.Execute();
             }
             _isInitialized = true;
             await Main();
@@ -272,7 +272,7 @@ namespace PokemonGo.RocketAPI.Logic
             var pokemons = inventory.InventoryDelta.InventoryItems.Select(i => i.InventoryItemData?.Pokemon).Where(p => p != null && p?.PokemonId > 0);
             */
 
-            await Task.Delay(10000);
+            //await Task.Delay(10000);
         }
 
         private async Task Main()
